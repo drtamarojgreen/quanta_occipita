@@ -1,71 +1,40 @@
-# QuantaOccipita.ps1
-# Description: Bootstraps a documentation folder for the next QuantaSoft module
+Extended QuantaOccipita Capabilities
+1. Boilerplate Code Generation
 
-$docsPath = Join-Path (Get-Location) "docs"
+    Generate starter source files (.cpp, .h) with module skeletons based on the QuantaSynapse template style.
 
-# Create docs directory if not exists
-if (-Not (Test-Path $docsPath)) {
-    New-Item -Path $docsPath -ItemType Directory
-    Write-Host "Created docs directory at $docsPath"
-} else {
-    Write-Host "docs directory already exists at $docsPath"
-}
+    Include standard includes, namespace, and placeholders for key methods.
 
-# plan.md content
-$planContent = @"
-# 📘 Module Planning Document
+2. Configuration File Initialization
 
-## Module Name
-- Placeholder: `Quanta[NewModule]` (e.g., QuantaCortex, QuantaThalamus)
+    Create a default YAML config file (config.yaml) with safe example values.
 
-## Purpose
-- Define the purpose of this module in the QuantaSoft system.
-- What role does it play within the agent ecosystem?
+    Add comments for each config field referencing the ethical and operational priorities.
 
-## Goals
-- [ ] Define inputs and outputs
-- [ ] Define triggers and dependencies
-- [ ] Establish ethical decision logic (if applicable)
+3. Git Commit & Push Prompt
 
-## Integration Plan
-- How will this module communicate with:
-  - 🧠 QuantaSensa
-  - 🕊️ QuantaEthos
-  - 🧬 QuantaSynapse
-  - 🧹 QuantaGlia
+    After creating files, prompt the user to optionally initialize git repo (if not already).
 
-## Notes
-- Anticipated constraints:
-- Potential edge cases:
-"@
+    Add all files, commit with a standard message, and push to the specified remote branch (e.g., quanta_<modulename>).
 
-# enhancements.md content
-$enhancementsContent = @"
-# 🌱 Module Enhancement Opportunities
+4. Issue Templates
 
-## UX or CLI Improvements
-- [ ] Streamline feedback or log formats
-- [ ] Add verbosity toggles or progress display
+    Generate .github/ISSUE_TEMPLATE/ directory with markdown templates for:
 
-## Learning & Adaptation
-- [ ] Integrate new pattern recognition or behavior shaping logic
-- [ ] Enable module to update itself from verified QuantaGlia knowledge
+        Bug reports
 
-## Resilience Features
-- [ ] Better handling of low-resource environments
-- [ ] Soft fallback routines when encountering unknown inputs
+        Feature requests
 
-## Interoperability
-- [ ] Enable tighter scheduling control via QuantaParent
-- [ ] Improve YAML or JSON config readability
+        Ethical concerns
 
-## Future Roadmap
-- [ ] Federated integration across machines?
-- [ ] Test in embedded or containerized environments
-"@
+5. Unit Test Skeletons
 
-# Write files
-Set-Content -Path (Join-Path $docsPath "plan.md") -Value $planContent
-Set-Content -Path (Join-Path $docsPath "enhancements.md") -Value $enhancementsContent
+    Create a test directory with minimal test files using a chosen framework (e.g., Catch2 for C++).
 
-Write-Host "Generated plan.md and enhancements.md with placeholders in $docsPath"
+    Include placeholder tests to verify basic module behaviors.
+
+6. Documentation Indexing
+
+    Append or create a central README.md index in the repo root.
+
+    Add entries linking to the new module's plan.md, enhancements.md, and code docs.
