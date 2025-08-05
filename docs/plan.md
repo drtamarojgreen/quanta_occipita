@@ -14,6 +14,9 @@
 - [X] **Issue Templates**: Generate `.github/ISSUE_TEMPLATE/` directory with markdown templates for bug reports, feature requests, and ethical concerns.
 - [X] **Unit Test Skeletons**: Create a `test/` directory with minimal test files using a chosen framework (e.g., Catch2 for C++) to verify basic module behaviors.
 - [X] **Documentation Indexing**: Append or create a central `README.md` index in the repo root, adding entries that link to the new module's `plan.md`, `enhancements.md`, and code docs.
+- [X] **Command-Line Flags**: Implemented `--no-tests`, `--dry-run`, and `--force` flags.
+- [X] **Dependency Checking**: Added a check to ensure Git is installed.
+- [X] **Interactive Mode**: Implemented prompts for module name and test creation.
 
 ## Integration Plan
 - As a developer tool, QuantaOccipita runs in the local development environment and does not directly integrate with the runtime components of the QuantaSoft agent ecosystem (QuantaSensa, QuantaEthos, etc.). Its primary interaction is with the file system and the user's Git client.
