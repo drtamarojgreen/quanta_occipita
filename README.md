@@ -1,40 +1,35 @@
-Extended QuantaOccipita Capabilities
-1. Boilerplate Code Generation
+# QuantaOccipita: QuantaSoft Module Bootstrapper
 
-    Generate starter source files (.cpp, .h) with module skeletons based on the QuantaSynapse template style.
+QuantaOccipita is a developer tool designed to bootstrap and accelerate the development of new QuantaSoft modules. It generates standardized boilerplate code, configuration files, and documentation to ensure consistency and adherence to project standards.
 
-    Include standard includes, namespace, and placeholders for key methods.
+## Features
 
-2. Configuration File Initialization
+- **Boilerplate Code Generation**: Generates starter source files (`.cpp`, `.h`) with module skeletons based on the QuantaSynapse template style.
+- **Configuration File Initialization**: Creates a default YAML config file (`config.yaml`) with safe example values and explanatory comments.
+- **Git Integration**: Prompts the user to initialize a git repository, commit the generated files, and push to a remote branch.
+- **Issue Templates**: Generates `.github/ISSUE_TEMPLATE/` with templates for bug reports, feature requests, and ethical concerns.
+- **Unit Test Skeletons**: Creates a `test/` directory with minimal test files using Catch2.
+- **Documentation Indexing**: Updates the central `README.md` to index the new module's documentation.
 
-    Create a default YAML config file (config.yaml) with safe example values.
+## Requirements
 
-    Add comments for each config field referencing the ethical and operational priorities.
+- [PowerShell](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell)
+- [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
 
-3. Git Commit & Push Prompt
+## Usage
 
-    After creating files, prompt the user to optionally initialize git repo (if not already).
+To use QuantaOccipita, run the `QuantaOccipita.ps1` script from your terminal.
 
-    Add all files, commit with a standard message, and push to the specified remote branch (e.g., quanta_<modulename>).
+```powershell
+./QuantaOccipita.ps1
+```
 
-4. Issue Templates
+The script will guide you through the process of creating a new module.
 
-    Generate .github/ISSUE_TEMPLATE/ directory with markdown templates for:
+## Contributing
 
-        Bug reports
+We welcome contributions! Please see our issue templates in the `.github/ISSUE_TEMPLATE` directory to get started.
 
-        Feature requests
+## Future Enhancements
 
-        Ethical concerns
-
-5. Unit Test Skeletons
-
-    Create a test directory with minimal test files using a chosen framework (e.g., Catch2 for C++).
-
-    Include placeholder tests to verify basic module behaviors.
-
-6. Documentation Indexing
-
-    Append or create a central README.md index in the repo root.
-
-    Add entries linking to the new module's plan.md, enhancements.md, and code docs.
+For a full list of planned enhancements and future roadmap, please see the [Enhancement Opportunities document](./docs/enhancements.md).
