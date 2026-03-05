@@ -18,6 +18,11 @@ int main(int argc, char* argv[]) {
         Console::print(QUANTA_VERSION, Console::Color::Cyan);
         return 0;
     }
+    if (cfg.listTemplates) {
+        Bootstrapper bootstrapper(cfg);
+        bootstrapper.run();
+        return 0;
+    }
 
     if (!cfg.noBanner) {
         Console::printBanner();

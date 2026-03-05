@@ -29,6 +29,9 @@ struct Config {
     bool listTemplates= false;
     bool headerGuard  = false;     // use #ifndef guard instead of #pragma once
     bool flatStructure= false;     // no module subdirectory
+    bool singleton    = false;     // generate singleton class
+    bool pimpl        = false;     // use PIMPL idiom
+    bool jsonConfig   = false;     // use JSON instead of YAML for config
 };
 
 // ─── CLI ─────────────────────────────────────────────────────────────────────
@@ -107,7 +110,7 @@ inline Config CLI::parse(int argc, char* argv[]) {
 
     if (hasFlag(args, "--help")    || hasFlag(args, "-h"))  { cfg.showHelp    = true; return cfg; }
     if (hasFlag(args, "--version") || hasFlag(args, "-v"))  { cfg.showVersion = true; return cfg; }
-    if (hasFlag(args, "--list-templates"))                  { cfg.listTemplates = true; }
+    if (hasFlag(args, "--list-templates"))                  { cfg.listTemplates = true; return cfg; }
 
     cfg.moduleName    = getArg(args, "--module",      getArg(args, "-m", cfg.moduleName));
     cfg.outputPath    = getArg(args, "--output",      getArg(args, "-o", cfg.outputPath));
@@ -130,6 +133,9 @@ inline Config CLI::parse(int argc, char* argv[]) {
     cfg.timestamp     = hasFlag(args, "--timestamp");
     cfg.headerGuard   = hasFlag(args, "--header-guard");
     cfg.flatStructure = hasFlag(args, "--flat");
+    cfg.singleton     = hasFlag(args, "--singleton");
+    cfg.pimpl         = hasFlag(args, "--pimpl");
+    cfg.jsonConfig    = hasFlag(args, "--json");
 
     // Persist any user-supplied identity settings
     if (!cfg.authorName.empty() || !cfg.authorEmail.empty())
@@ -174,6 +180,9 @@ GENERATION
   --no-config              Skip config.yaml generation
   --no-docs                Skip docs/ directory generation
   --header-guard           Use #ifndef guards instead of #pragma once
+  --singleton              Generate singleton class pattern
+  --pimpl                  Generate PIMPL idiom skeleton
+  --json                   Generate config.json instead of config.yaml
   --license      <type>    License type: mit (default), apache2, gpl3, none
   --cpp-std      <ver>     C++ standard version (default: 17)
 

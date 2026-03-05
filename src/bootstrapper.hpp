@@ -43,6 +43,7 @@ private:
     // ── Feature generators ─────────────────────────────────────────────────
     void genSourceFiles(const fs::path& root);
     void genConfigYaml(const fs::path& root);
+    void genConfigJson(const fs::path& root);
     void genDocs(const fs::path& root);
     void genIssueTemplates(const fs::path& root);
     void genTests(const fs::path& root);
@@ -97,7 +98,10 @@ inline void Bootstrapper::run() {
     if (!cfg_.quiet) Console::info("Bootstrapping module: " + cfg_.moduleName);
 
     genSourceFiles(root);
-    if (!cfg_.noConfig) genConfigYaml(root);
+    if (!cfg_.noConfig) {
+        if (cfg_.jsonConfig) genConfigJson(root);
+        else genConfigYaml(root);
+    }
     if (!cfg_.noDocs)   genDocs(root);
     genIssueTemplates(root);
     if (!cfg_.noTests)  genTests(root);
@@ -191,19 +195,35 @@ inline void Bootstrapper::genSourceFiles(const fs::path& root) {
     } else {
         h += "#pragma once\n\n";
     }
-    h += "#include <string>\n\n";
+    h += "#include <string>\n";
+    if (cfg_.pimpl) h += "#include <memory>\n";
+    h += "\n";
     h += "namespace " + M + " {\n\n";
     h += "/**\n * @brief Core class for the " + M + " module.\n *\n";
     h += " * Replace this placeholder with your module's actual interface.\n */\n";
     h += "class " + M + " {\npublic:\n";
-    h += "    explicit " + M + "(const std::string& name);\n";
+    if (cfg_.singleton) {
+        h += "    static " + M + "& instance();\n";
+        h += "    " + M + "(const " + M + "&) = delete;\n";
+        h += "    " + M + "& operator=(const " + M + "&) = delete;\n\n";
+    } else {
+        h += "    explicit " + M + "(const std::string& name);\n";
+    }
     h += "    ~" + M + "() = default;\n\n";
     h += "    /** @brief Returns the module's identifier. */\n";
     h += "    std::string name() const;\n\n";
     h += "    /** @brief Primary entry point for module execution. */\n";
     h += "    void run();\n\n";
     h += "private:\n";
-    h += "    std::string name_;\n";
+    if (cfg_.singleton) {
+        h += "    " + M + "();\n";
+    }
+    if (cfg_.pimpl) {
+        h += "    struct Impl;\n";
+        h += "    std::unique_ptr<Impl> impl_;\n";
+    } else {
+        h += "    std::string name_;\n";
+    }
     h += "};\n\n";
     h += "} // namespace " + M + "\n";
     if (cfg_.headerGuard) h += "\n#endif // " + guard + "\n";
@@ -213,11 +233,37 @@ inline void Bootstrapper::genSourceFiles(const fs::path& root) {
     cpp += licHdr;
     cpp += "\n#include \"" + M + ".hpp\"\n#include <iostream>\n\n";
     cpp += "namespace " + M + " {\n\n";
-    cpp += M + "::" + M + "(const std::string& name) : name_(name) {}\n\n";
-    cpp += "std::string " + M + "::name() const { return name_; }\n\n";
+
+    if (cfg_.pimpl) {
+        cpp += "struct " + M + "::Impl {\n";
+        cpp += "    std::string name;\n";
+        cpp += "};\n\n";
+    }
+
+    if (cfg_.singleton) {
+        cpp += M + "& " + M + "::instance() {\n";
+        cpp += "    static " + M + " inst;\n";
+        cpp += "    return inst;\n";
+        cpp += "}\n\n";
+        cpp += M + "::" + M + "() ";
+        if (cfg_.pimpl) cpp += ": impl_(std::make_unique<Impl>(Impl{\"Singleton " + M + "\"}))";
+        else cpp += ": name_(\"Singleton " + M + "\")";
+        cpp += " {}\n\n";
+    } else {
+        cpp += M + "::" + M + "(const std::string& name) ";
+        if (cfg_.pimpl) cpp += ": impl_(std::make_unique<Impl>(Impl{name}))";
+        else cpp += ": name_(name)";
+        cpp += " {}\n\n";
+    }
+
+    cpp += "std::string " + M + "::name() const { return ";
+    if (cfg_.pimpl) cpp += "impl_->name";
+    else cpp += "name_";
+    cpp += "; }\n\n";
+
     cpp += "void " + M + "::run() {\n";
     cpp += "    // TODO: implement " + M + " logic\n";
-    cpp += "    std::cout << \"[\" << name_ << \"] running...\\n\";\n";
+    cpp += "    std::cout << \"[\" << name() << \"] running...\\n\";\n";
     cpp += "}\n\n";
     cpp += "} // namespace " + M + "\n";
 
@@ -227,7 +273,11 @@ inline void Bootstrapper::genSourceFiles(const fs::path& root) {
     maincpp += "\n// Demo: instantiate and run " + M + "\n";
     maincpp += "#include \"" + M + ".hpp\"\n\n";
     maincpp += "int main() {\n";
-    maincpp += "    " + M + "::" + M + " module(\"" + M + "\");\n";
+    if (cfg_.singleton) {
+        maincpp += "    auto& module = " + M + "::" + M + "::instance();\n";
+    } else {
+        maincpp += "    " + M + "::" + M + " module(\"" + M + "\");\n";
+    }
     maincpp += "    module.run();\n";
     maincpp += "    return 0;\n}\n";
 
@@ -271,6 +321,34 @@ inline void Bootstrapper::genConfigYaml(const fs::path& root) {
     y += "  cache: \".cache/\"\n";
 
     writeFile(root / "config.yaml", y);
+}
+
+inline void Bootstrapper::genConfigJson(const fs::path& root) {
+    const std::string& M = cfg_.moduleName;
+    std::string j;
+    j += "{\n";
+    j += "  \"metadata\": {\n";
+    j += "    \"module\": \"" + M + "\",\n";
+    j += "    \"version\": \"0.1.0\",\n";
+    j += "    \"author\": \"" + authorDisplay() + "\"";
+    if (!cfg_.authorEmail.empty())
+        j += ",\n    \"email\": \"" + cfg_.authorEmail + "\"";
+    j += "\n  },\n";
+    j += "  \"runtime\": {\n";
+    j += "    \"log_level\": \"info\",\n";
+    j += "    \"max_retries\": 3,\n";
+    j += "    \"timeout_ms\": 5000\n";
+    j += "  },\n";
+    j += "  \"features\": {\n";
+    j += "    \"enabled\": true,\n";
+    j += "    \"flags\": [\n";
+    j += "      { \"name\": \"feature_alpha\", \"active\": false },\n";
+    j += "      { \"name\": \"feature_beta\", \"active\": true }\n";
+    j += "    ]\n";
+    j += "  }\n";
+    j += "}\n";
+
+    writeFile(root / "config.json", j);
 }
 
 // ─── Docs ─────────────────────────────────────────────────────────────────────
@@ -394,11 +472,20 @@ inline void Bootstrapper::genTests(const fs::path& root) {
     test += "#include \"catch2/catch.hpp\"\n";
     test += "#include \"../src/" + M + ".hpp\"\n\n";
     test += "TEST_CASE(\"" + M + " initialises correctly\", \"[" + M + "]\") {\n";
-    test += "    " + M + "::" + M + " mod(\"test_module\");\n";
-    test += "    REQUIRE(mod.name() == \"test_module\");\n";
+    if (cfg_.singleton) {
+        test += "    auto& mod = " + M + "::" + M + "::instance();\n";
+        test += "    REQUIRE(mod.name() == \"Singleton " + M + "\");\n";
+    } else {
+        test += "    " + M + "::" + M + " mod(\"test_module\");\n";
+        test += "    REQUIRE(mod.name() == \"test_module\");\n";
+    }
     test += "}\n\n";
     test += "TEST_CASE(\"" + M + " run() executes without exception\", \"[" + M + "]\") {\n";
-    test += "    " + M + "::" + M + " mod(\"test_module\");\n";
+    if (cfg_.singleton) {
+        test += "    auto& mod = " + M + "::" + M + "::instance();\n";
+    } else {
+        test += "    " + M + "::" + M + " mod(\"test_module\");\n";
+    }
     test += "    REQUIRE_NOTHROW(mod.run());\n";
     test += "}\n\n";
     test += "// TODO: Add domain-specific tests here\n";
@@ -412,6 +499,16 @@ inline void Bootstrapper::genTests(const fs::path& root) {
 
     writeFile(root / "test" / (M + ".test.cpp"), test);
     writeFile(root / "test" / "run_tests.sh",    runner);
+
+    // gen test CMakeLists.txt
+    std::string tc;
+    tc += "cmake_minimum_required(VERSION 3.10)\n";
+    tc += "project(" + M + "_tests LANGUAGES CXX)\n\n";
+    tc += "set(CMAKE_CXX_STANDARD " + cfg_.cppStd + ")\n\n";
+    tc += "add_executable(run_tests " + M + ".test.cpp ../src/" + M + ".cpp)\n";
+    tc += "target_include_directories(run_tests PRIVATE ../src)\n";
+
+    writeFile(root / "test" / "CMakeLists.txt", tc);
 }
 
 // ─── Root README ──────────────────────────────────────────────────────────────
@@ -565,13 +662,13 @@ inline void Bootstrapper::handleGit(const fs::path& root) {
     }
 
     auto run = [&](const std::string& cmd) {
-        int ret = std::system(("cd " + root.string() + " && " + cmd + " 2>/dev/null").c_str());
+        int ret = std::system(("cd '" + root.string() + "' && " + cmd + " 2>/dev/null").c_str());
         return ret == 0;
     };
 
     if (!isRepo) {
         if (!run("git init")) { Console::error("git init failed."); return; }
-        run("git checkout -b " + cfg_.initialBranch);
+        run("git checkout -b '" + cfg_.initialBranch + "'");
     }
 
     run("git add .");
@@ -580,7 +677,7 @@ inline void Bootstrapper::handleGit(const fs::path& root) {
         ? "chore: bootstrap " + cfg_.moduleName + " module via QuantaOccipita"
         : cfg_.commitMessage;
 
-    if (!run("git commit -m \"" + msg + "\"")) {
+    if (!run("git commit -m '" + msg + "'")) {
         Console::warn("git commit failed (is git configured with user.email/user.name?)");
         return;
     }
@@ -590,8 +687,8 @@ inline void Bootstrapper::handleGit(const fs::path& root) {
     std::string remote;
     std::getline(std::cin, remote);
     if (!remote.empty()) {
-        run("git remote add origin " + remote);
-        if (run("git push -u origin " + cfg_.initialBranch))
+        run("git remote add origin '" + remote + "'");
+        if (run("git push -u origin '" + cfg_.initialBranch + "'"))
             Console::success("Pushed to " + remote);
         else
             Console::warn("Push failed. You can push manually later.");
@@ -620,11 +717,15 @@ inline void Bootstrapper::writeReport(const fs::path& root) {
 // ─── List Templates ──────────────────────────────────────────────────────────
 
 inline void Bootstrapper::listTemplates() const {
+    Console::printBanner();
     Console::print("Available module templates:", Console::Color::Cyan);
     Console::print("  standard    Full C++ module with src, test, docs, config, git hooks (default)");
     Console::print("  minimal     Only src/ and a README (combine with --no-tests --no-docs --no-config)");
-    Console::print("  library     Header-only layout with examples/ instead of src/main.cpp");
+    Console::print("  singleton   Generate a Singleton class pattern (use --singleton)");
+    Console::print("  pimpl       Generate a PIMPL idiom skeleton (use --pimpl)");
+    Console::print("  json-cfg    Use JSON instead of YAML for config (use --json)");
     Console::print("");
     Console::print("Select a template by combining flags, e.g.:");
     Console::print("  quanta_occipita -m MyModule --no-tests --no-config   # minimal-ish");
+    Console::print("  quanta_occipita -m MyModule --singleton --json       # custom pattern");
 }
