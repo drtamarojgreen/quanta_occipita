@@ -5,22 +5,24 @@
 
 ## Purpose
 - To bootstrap and accelerate the development of new QuantaSoft modules by generating standardized boilerplate code, configuration files, and documentation.
-- It serves as a foundational developer tool to ensure consistency and adherence to project standards.
+- Ported to C++ to provide a high-performance, cross-platform developer tool.
 
 ## Goals
-- [X] **Boilerplate Code Generation**: Generate starter source files (.cpp, .h) with module skeletons based on the QuantaSynapse template style.
-- [X] **Configuration File Initialization**: Create a default YAML config file (config.yaml) with safe example values and explanatory comments.
-- [X] **Git Commit & Push Prompt**: After creating files, prompt the user to optionally initialize a git repository, commit the files with a standard message, and push to a specified remote branch.
-- [X] **Issue Templates**: Generate `.github/ISSUE_TEMPLATE/` directory with markdown templates for bug reports, feature requests, and ethical concerns.
-- [X] **Unit Test Skeletons**: Create a `test/` directory with minimal test files using a chosen framework (e.g., Catch2 for C++) to verify basic module behaviors.
-- [X] **Documentation Indexing**: Append or create a central `README.md` index in the repo root, adding entries that link to the new module's `plan.md`, `enhancements.md`, and code docs.
-- [X] **Command-Line Flags**: Implemented `--no-tests`, `--dry-run`, and `--force` flags.
-- [X] **Dependency Checking**: Added a check to ensure Git is installed.
-- [X] **Interactive Mode**: Implemented prompts for module name and test creation.
+- [X] **Boilerplate Code Generation**: Generate starter source files (.cpp, .h) with module skeletons.
+- [X] **Configuration File Initialization**: Create a default YAML config file (config.yaml).
+- [X] **Git Integration**: Handle repository initialization, commits, and remote push.
+- [X] **Issue Templates**: Generate standard GitHub issue templates.
+- [X] **Unit Test Skeletons**: Create test directory and Catch2-ready skeletons.
+- [X] **Documentation Indexing**: Generate module-specific README and planning docs.
+- [X] **Command-Line Flags**: Robust argument parsing with a variety of configuration options.
+- [X] **Dependency Checking**: Verify environment readiness (Git availability).
+- [X] **Interactive Mode**: Fallback to interactive prompts for missing required info.
+- [X] **Persistence**: Use `.quanta_config` to remember user preferences.
 
 ## Integration Plan
-- As a developer tool, QuantaOccipita runs in the local development environment and does not directly integrate with the runtime components of the QuantaSoft agent ecosystem (QuantaSensa, QuantaEthos, etc.). Its primary interaction is with the file system and the user's Git client.
+- Developer tool that interacts with the file system and Git.
+- Provides a bridge between conceptual module planning and initial implementation.
 
 ## Notes
-- **Anticipated constraints**: The tool currently relies on a specific template style (QuantaSynapse) and a single testing framework (Catch2). It is designed for C++ projects.
-- **Potential edge cases**: The tool might encounter issues if run in a directory that is not a valid Git repository or if the user lacks the necessary permissions to write files. It also assumes a Unix-like environment for file paths and commands.
+- **Anticipated constraints**: Requires a C++17 compliant compiler for building.
+- **Potential edge cases**: Handled via robust error checking and dry-run mode.
