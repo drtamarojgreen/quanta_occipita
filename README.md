@@ -10,21 +10,47 @@ QuantaOccipita is a developer tool designed to bootstrap and accelerate the deve
 - **Issue Templates**: Generates `.github/ISSUE_TEMPLATE/` with templates for bug reports, feature requests, and ethical concerns.
 - **Unit Test Skeletons**: Creates a `test/` directory with minimal test files using Catch2.
 - **Documentation Indexing**: Updates the central `README.md` to index the new module's documentation.
+- **Persistent Configuration**: Saves author identity and defaults in `.quanta_config`.
+- **Timestamped Directories**: Option to append timestamps to module folders.
+- **Dry Run Mode**: Preview actions without making changes.
 
 ## Requirements
 
-- [PowerShell](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell)
+- [C++17 Compiler](https://gcc.gnu.org/) (e.g., g++)
+- [Make](https://www.gnu.org/software/make/)
 - [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
+
+## Building (C++ Implementation)
+
+To build the C++ version of QuantaOccipita:
+
+```bash
+make
+```
+
+This will produce the `quanta_occipita` executable.
 
 ## Usage
 
-To use QuantaOccipita, run the `QuantaOccipita.ps1` script from your terminal.
+### C++ Application
+
+```bash
+./quanta_occipita --module "QuantaCortex"
+```
+
+Common options:
+- `--no-tests`: Skip test directory generation.
+- `--dry-run`: Preview changes.
+- `--license mit`: Specify license (mit, apache2, gpl3).
+- `--author "Name"`: Set author name.
+
+### Legacy PowerShell Script
+
+The original PowerShell implementation is still available for environments with PowerShell support.
 
 ```powershell
 ./QuantaOccipita.ps1
 ```
-
-The script will guide you through the process of creating a new module.
 
 ## Contributing
 
