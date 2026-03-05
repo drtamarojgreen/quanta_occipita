@@ -1,19 +1,31 @@
 # 🌱 Module Enhancement Opportunities
 
-## Core Status
-- The QuantaOccipita tool has been successfully ported to C++ (v1.1.0), implementing a wide range of previously requested features and architectural improvements.
-
 ## UX or CLI Improvements
+- [ ] Streamline feedback or log formats
+- [ ] Add verbosity toggles or progress display
 - [X] Add command-line flags to selectively enable or disable features (e.g., `--no-tests`).
 - [X] Implement a `--dry-run` mode to show which files and directories would be created without writing them.
 - [X] Add an interactive mode that prompts the user for the module name and other configuration options.
-- [X] Persistent configuration via `.quanta_config`.
-- [X] Support for timestamped directories.
+
+## Learning & Adaptation
+- [ ] Integrate new pattern recognition or behavior shaping logic
+- [ ] Enable module to update itself from verified QuantaGlia knowledge
 
 ## Resilience Features
+- [ ] Better handling of low-resource environments
+- [ ] Soft fallback routines when encountering unknown inputs
 - [X] Add robust checks to prevent overwriting existing user files unless explicitly forced with a `--force` flag.
 - [X] Before execution, verify that all necessary dependencies (like Git) are installed and available in the user's PATH.
-- [X] Detailed action logging and optional report generation.
+
+## Interoperability
+- [ ] Enable tighter scheduling control via QuantaParent
+- [ ] Improve YAML or JSON config readability
+
+## Future Roadmap
+- [ ] Federated integration across machines?
+- [ ] Test in embedded or containerized environments
+- [ ] Allow users to provide their own custom templates for generating code, docs, and tests.
+- [ ] Add support for more programming languages beyond C++, such as Python, Rust, or Go.
 
 ---
 
@@ -23,7 +35,7 @@
 1.  [X] Add a `--version` flag to display the current version of the script.
 2.  [X] Implement a `--help` command that provides more detailed usage information than the README.
 3.  [X] Add a `--quiet` or `--silent` mode to suppress all non-essential output.
-4.  [X] Implement color-coded output for warnings, errors, and success messages.
+4.  [X] Implement color-coded output for warnings, errors, and success messages (using PowerShell's native capabilities).
 5.  [X] Add a confirmation prompt before generating files in a non-empty directory.
 6.  [X] Display a summary of the selected options and module name before proceeding with generation.
 7.  [X] Add a `--list-templates` flag to show available module templates.
@@ -88,7 +100,7 @@
 58. [X] Generate a `CONTRIBUTING.md` file with basic guidelines.
 59. [X] Generate a `CODE_OF_CONDUCT.md` file.
 60. [X] Add an option to skip generation of all documentation files.
-61. [ ] Update the root `README.md` to link to the new module's documentation.
+61. [ ] Update the root `README.md` to link to the new module's documentation (as the feature list suggests).
 62. [X] Add a section to the generated `README.md` on how to build and run the code.
 63. [X] Add a section on how to run the tests.
 64. [X] Generate a placeholder `docs` directory within the module directory for more detailed documentation.
@@ -96,11 +108,11 @@
 
 ### Script Resilience & Error Handling
 66. [ ] Check for write permissions in the target directory before starting generation.
-67. [X] Provide more specific error messages.
+67. [X] Provide more specific error messages (e.g., "Directory not found" instead of a generic PowerShell error).
 68. [ ] Implement a cleanup routine to remove partially generated files if the script fails midway.
 69. [X] Add a check to ensure the module name doesn't contain invalid characters.
 70. [ ] Warn the user if they are running the script with elevated (Administrator) privileges.
-71. [ ] Check for minimum required PowerShell version before executing. (N/A for C++)
+71. [ ] Check for minimum required PowerShell version before executing.
 72. [X] Add a `--force` flag to bypass safety checks like overwriting directories.
 73. [X] Create a log file of all actions performed during generation.
 74. [ ] Handle `Ctrl+C` interruption gracefully, cleaning up any created files.
@@ -109,13 +121,13 @@
 ### Testing (Catch2 Skeletons)
 76. [X] Add an option to skip generating the `test/` directory.
 77. [X] Generate a test case that includes the module's main header file to ensure it's includable.
-78. [X] Add a sample test case using `REQUIRE` that fails by default, encouraging TDD. (Wait, I used a passing test by default, but REQUIRE is there).
+78. [ ] Add a sample test case using `REQUIRE` that fails by default, encouraging TDD.
 79. [ ] Generate a separate test file for each class generated.
 80. [X] Add comments to the test file explaining how to add new test cases.
 81. [X] Generate a `CMakeLists.txt` in the `test/` directory to build the tests.
-82. [ ] Add an option to generate a test skeleton for other frameworks like Google Test.
+82. [ ] Add an option to generate a test skeleton for other frameworks like Google Test. (This might border on new libs, but generating the skeleton is okay).
 83. [X] Name the test file after the module (e.g., `MyModule.test.cpp`).
-84. [X] Add a simple script (`run_tests.sh`) to compile and run the tests.
+84. [X] Add a simple script (`run_tests.sh`) or `.ps1` to compile and run the tests.
 85. [X] The generated test `main.cpp` should be pre-filled with the Catch2 main macro.
 
 ### Extensibility & Customization
@@ -129,7 +141,7 @@
 93. [X] Allow creating a project without a subdirectory for the module (flat structure).
 94. [ ] Add an option to specify a custom copyright holder.
 95. [ ] Allow users to define a set of custom files to be copied into every new module.
-96. [ ] Add a plugin system for extending functionality.
+96. [ ] Add a plugin system (e.g., PowerShell modules) for extending functionality.
 97. [ ] Allow defining a "project profile" in a config file that specifies a collection of settings for a certain type of project.
 98. [ ] Let users define custom text to be used for the banner.
 99. [ ] Allow specification of a custom `.gitignore` file from a URL or local path.
