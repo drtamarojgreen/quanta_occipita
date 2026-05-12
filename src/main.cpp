@@ -5,10 +5,24 @@
 #include "bootstrapper.hpp"
 #include "console.hpp"
 #include <iostream>
+#include <csignal>
+#include <atomic>
+
+namespace {
+    std::atomic<bool> g_terminated{false};
+}
+
+void signalHandler(int signum) {
+    (void)signum;
+    g_terminated = true;
+}
 
 int main(int argc, char* argv[]) {
+    std::signal(SIGINT, signalHandler);
     CLI cli;
     Config cfg = cli.parse(argc, argv);
+
+    Console::setVerbosity(cfg.verbose);
 
     if (cfg.showHelp) {
         cli.printHelp();
@@ -25,7 +39,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (!cfg.noBanner) {
-        Console::printBanner();
+        Console::printBanner(cfg.bannerText);
     }
 
     if (cfg.moduleName.empty()) {
@@ -44,6 +58,11 @@ int main(int argc, char* argv[]) {
     }
 
     bootstrapper.run();
+
+    if (g_terminated) {
+        bootstrapper.cleanup();
+        return 1;
+    }
 
     if (!cfg.quiet) {
         Console::success("QuantaOccipita bootstrap complete!");

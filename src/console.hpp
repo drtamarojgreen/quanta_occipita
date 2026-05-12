@@ -6,6 +6,15 @@
 
 namespace Console {
 
+    inline bool& verboseFlag() {
+        static bool v = false;
+        return v;
+    }
+
+    inline void setVerbosity(bool v) {
+        verboseFlag() = v;
+    }
+
     enum class Color { Default, Red, Green, Yellow, Cyan, Magenta, Bold };
 
     inline std::string colorCode(Color c) {
@@ -40,16 +49,35 @@ namespace Console {
         std::cout << "\033[36m[→] " << msg << "\033[0m\n";
     }
 
-    inline void printBanner() {
+    inline void debug(const std::string& msg) {
+        if (verboseFlag()) {
+            std::cout << "\033[35m[DEBUG] " << msg << "\033[0m\n";
+        }
+    }
+
+    inline void progressStep(const std::string& msg) {
+        std::cout << "\033[34m[⋯] " << msg << "...\033[0m" << std::flush;
+    }
+
+    inline void progressDone() {
+        std::cout << "\033[32m done.\033[0m\n";
+    }
+
+    inline void printBanner(const std::string& customText = "") {
         std::cout << "\033[35m\033[1m";
-        std::cout << R"(
+        if (!customText.empty()) {
+            std::cout << "\n" << customText << "\n";
+        } else {
+            std::cout << R"(
   ___                  _        ___           _       _ _
  / _ \ _   _  __ _ _ _| |_ __ _/ _ \ ___ ___(_)_ __ (_) |_ __ _
 | | | | | | |/ _` | '_ \ __/ _` | | | / __/ __| | '_ \| | __/ _` |
 | |_| | |_| | (_| | | | | || (_| | |_| | (_| (__| | |_) | | || (_| |
  \__\_\\__,_|\__,_|_| |_|\__\__,_|\___/ \___\___|_| .__/|_|\__\__,_|
                                                    |_|
-)" << "\033[0m";
+)";
+        }
+        std::cout << "\033[0m";
         std::cout << "\033[36m  QuantaSoft Module Bootstrapper v" << QUANTA_VERSION << "\033[0m\n\n";
     }
 }

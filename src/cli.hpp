@@ -13,6 +13,14 @@ struct Config {
     std::string initialBranch = "main";
     std::string commitMessage;               // custom git commit message
     std::string cppStd        = "17";        // C++ standard version
+    std::string extension     = "cpp";       // item 28
+    std::string templatePath;                // item 91
+    std::string copyrightHolder;             // item 94
+    std::string profile;                     // item 97
+    std::string bannerText;                  // item 98
+    std::string lang          = "cpp";       // support more languages
+    std::string gitignorePath;               // item 99
+    std::string remoteName    = "origin";    // item 55
 
     bool noTests      = false;
     bool dryRun       = false;
@@ -32,6 +40,24 @@ struct Config {
     bool singleton    = false;     // generate singleton class
     bool pimpl        = false;     // use PIMPL idiom
     bool jsonConfig   = false;     // use JSON instead of YAML for config
+
+    bool verbose      = false;               // log toggles
+    bool progress     = false;               // item 12
+    bool update       = false;               // item 13
+    bool eject        = false;               // item 14
+    bool factory      = false;               // item 22
+    bool observer     = false;               // item 32
+    bool shared       = false;               // item 34
+    bool headerOnly   = false;               // item 30
+    bool newBranch    = false;               // item 47
+    bool push         = false;               // item 49
+    bool tag          = false;               // item 53
+    bool noUpdateCheck= false;               // item 100
+    bool snippets     = false;               // item 86
+    bool hooks        = false;               // item 87
+    bool issueTemplates= false;              // item 90
+    bool customFiles  = false;               // item 95
+    bool plugins      = false;               // item 96
 };
 
 // ─── CLI ─────────────────────────────────────────────────────────────────────
@@ -120,6 +146,14 @@ inline Config CLI::parse(int argc, char* argv[]) {
     cfg.initialBranch = getArg(args, "--branch",      cfg.initialBranch);
     cfg.commitMessage = getArg(args, "--message",     getArg(args, "-M", ""));
     cfg.cppStd        = getArg(args, "--cpp-std",     cfg.cppStd);
+    cfg.extension     = getArg(args, "--extension",   cfg.extension);
+    cfg.templatePath  = getArg(args, "--template-path", cfg.templatePath);
+    cfg.copyrightHolder = getArg(args, "--copyright", cfg.copyrightHolder);
+    cfg.profile       = getArg(args, "--profile",     cfg.profile);
+    cfg.bannerText    = getArg(args, "--banner-text", cfg.bannerText);
+    cfg.lang          = getArg(args, "--lang",        cfg.lang);
+    cfg.gitignorePath = getArg(args, "--gitignore-path", cfg.gitignorePath);
+    cfg.remoteName    = getArg(args, "--remote-name", cfg.remoteName);
 
     cfg.noTests       = hasFlag(args, "--no-tests");
     cfg.dryRun        = hasFlag(args, "--dry-run");
@@ -136,6 +170,24 @@ inline Config CLI::parse(int argc, char* argv[]) {
     cfg.singleton     = hasFlag(args, "--singleton");
     cfg.pimpl         = hasFlag(args, "--pimpl");
     cfg.jsonConfig    = hasFlag(args, "--json");
+
+    cfg.verbose       = hasFlag(args, "--verbose");
+    cfg.progress      = hasFlag(args, "--progress");
+    cfg.update        = hasFlag(args, "--update");
+    cfg.eject         = hasFlag(args, "--eject");
+    cfg.factory       = hasFlag(args, "--factory");
+    cfg.observer      = hasFlag(args, "--observer");
+    cfg.shared        = hasFlag(args, "--shared");
+    cfg.headerOnly    = hasFlag(args, "--header-only");
+    cfg.newBranch     = hasFlag(args, "--new-branch");
+    cfg.push          = hasFlag(args, "--push");
+    cfg.tag           = hasFlag(args, "--tag");
+    cfg.noUpdateCheck = hasFlag(args, "--no-update-check");
+    cfg.snippets      = hasFlag(args, "--snippets");
+    cfg.hooks         = hasFlag(args, "--hooks");
+    cfg.issueTemplates= hasFlag(args, "--issue-templates");
+    cfg.customFiles   = hasFlag(args, "--custom-files");
+    cfg.plugins       = hasFlag(args, "--plugins");
 
     // Persist any user-supplied identity settings
     if (!cfg.authorName.empty() || !cfg.authorEmail.empty())
@@ -182,22 +234,49 @@ GENERATION
   --header-guard           Use #ifndef guards instead of #pragma once
   --singleton              Generate singleton class pattern
   --pimpl                  Generate PIMPL idiom skeleton
+  --factory                Generate factory pattern skeleton
+  --observer               Generate observer pattern skeleton
+  --header-only            Generate header-only library
+  --shared                 Generate shared library in CMakeLists.txt
   --json                   Generate config.json instead of config.yaml
   --license      <type>    License type: mit (default), apache2, gpl3, none
   --cpp-std      <ver>     C++ standard version (default: 17)
+  --extension    <ext>     File extension: cpp (default) or cc
+  --lang         <lang>    Language skeleton: cpp (default), python, rust, go
 
 GIT
   --skip-git               Disable all git actions
   --branch       <name>    Initial branch name (default: main)
   --message, -M  <msg>     Custom initial commit message
+  --new-branch             Automatically create a new branch
+  --push                   Automatically push to remote
+  --tag                    Automatically tag the initial commit
+  --remote-name  <name>    Git remote name (default: origin)
+  --gitignore-path <path>  Path or URL to a custom .gitignore
+
+EXTENSIBILITY
+  --template-path <path>   Path to custom templates
+  --snippets               Use custom code snippets
+  --hooks                  Run post-generation hooks
+  --issue-templates        Use custom issue templates
+  --custom-files           Copy custom files into the module
+  --plugins                Enable plugin system
+  --profile      <name>    Use a specific project profile
+  --copyright    <name>    Custom copyright holder name
 
 BEHAVIOUR
   --dry-run                Preview actions without writing files
   --force,   -f            Overwrite existing files
   --quiet / --silent       Suppress non-essential output
+  --verbose                Show detailed output
+  --progress               Show progress indicators
   --no-banner              Hide ASCII banner
+  --banner-text  <text>    Custom banner text
   --report                 Generate quanta_report.txt after bootstrapping
   --list-templates         Show available module templates
+  --update                 Update an existing module
+  --eject                  Remove QuantaOccipita-specific files
+  --no-update-check        Disable online version check
 
 INFO
   --version, -v            Print version
