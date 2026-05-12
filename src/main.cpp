@@ -6,17 +6,15 @@
 #include "console.hpp"
 #include <iostream>
 #include <csignal>
+#include <atomic>
 
 namespace {
-    Bootstrapper* g_bootstrapper = nullptr;
+    std::atomic<bool> g_terminated{false};
 }
 
 void signalHandler(int signum) {
-    Console::error("\nInterrupt received (signal " + std::to_string(signum) + ").");
-    if (g_bootstrapper) {
-        g_bootstrapper->cleanup();
-    }
-    std::exit(signum);
+    (void)signum;
+    g_terminated = true;
 }
 
 int main(int argc, char* argv[]) {
@@ -54,13 +52,17 @@ int main(int argc, char* argv[]) {
     }
 
     Bootstrapper bootstrapper(cfg);
-    g_bootstrapper = &bootstrapper;
 
     if (cfg.dryRun) {
         Console::warn("--- Dry Run Mode: No files will be written ---");
     }
 
     bootstrapper.run();
+
+    if (g_terminated) {
+        bootstrapper.cleanup();
+        return 1;
+    }
 
     if (!cfg.quiet) {
         Console::success("QuantaOccipita bootstrap complete!");
