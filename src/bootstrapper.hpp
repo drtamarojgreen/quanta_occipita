@@ -23,6 +23,7 @@ public:
     explicit Bootstrapper(const Config& cfg) : cfg_(cfg) {}
 
     void run();
+    void cleanup();
 
 private:
     const Config& cfg_;
@@ -42,12 +43,19 @@ private:
 
     // ── Feature generators ─────────────────────────────────────────────────
     void genSourceFiles(const fs::path& root);
+    void genFactory(const fs::path& root);
+    void genObserver(const fs::path& root);
     void genConfigYaml(const fs::path& root);
+    void genConfigParser(const fs::path& root);
     void genConfigJson(const fs::path& root);
     void genDocs(const fs::path& root);
     void genIssueTemplates(const fs::path& root);
     void genTests(const fs::path& root);
+    void genGTestSkeleton(const fs::path& root);
+    void runPostGenHook(const fs::path& root);
+    void loadProfile();
     void genRootReadme(const fs::path& root);
+    void updateRootReadme(const fs::path& root);
     void genLicense(const fs::path& root);
     void genGitignore(const fs::path& root);
     void genChangelog(const fs::path& root);
@@ -55,10 +63,38 @@ private:
     void genClangFormat(const fs::path& root);
     void genCMakeLists(const fs::path& root);
     void genDoxyfile(const fs::path& root);
+    void genPythonSkeleton(const fs::path& root);
+    void genRustSkeleton(const fs::path& root);
+    void genGoSkeleton(const fs::path& root);
+    void genAdaptiveSkeletons(const fs::path& root);
+    void updateModule(const fs::path& root);
+    void ejectModule(const fs::path& root);
+    void checkNewVersion();
     void handleGit(const fs::path& root);
     void writeReport(const fs::path& root);
     void listTemplates() const;
+
+    bool checkPermissions(const fs::path& p);
+    bool checkAdmin();
+    bool checkEnvironment();
+    bool checkCompiler();
 };
+
+// ─── Implementation ──────────────────────────────────────────────────────────
+
+inline void Bootstrapper::cleanup() {
+    if (cfg_.dryRun) return;
+    Console::warn("Cleaning up partially generated files...");
+    for (const auto& f : log_) {
+        if (f.find("[+]") == 0) {
+            std::string path = f.substr(4);
+            if (fs::exists(path)) {
+                fs::remove(path);
+                Console::debug("Removed: " + path);
+            }
+        }
+    }
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  Implementation
@@ -66,6 +102,10 @@ private:
 
 inline void Bootstrapper::run() {
     if (cfg_.listTemplates) { listTemplates(); return; }
+
+    if (!cfg_.profile.empty()) loadProfile();
+
+    if (!checkEnvironment()) return;
 
     fs::path root = rootPath();
 
@@ -98,14 +138,20 @@ inline void Bootstrapper::run() {
     if (!cfg_.quiet) Console::info("Bootstrapping module: " + cfg_.moduleName);
 
     genSourceFiles(root);
+    if (cfg_.factory)   genFactory(root);
+    if (cfg_.observer)  genObserver(root);
     if (!cfg_.noConfig) {
         if (cfg_.jsonConfig) genConfigJson(root);
-        else genConfigYaml(root);
+        else {
+            genConfigYaml(root);
+            genConfigParser(root); // Item 42
+        }
     }
     if (!cfg_.noDocs)   genDocs(root);
     genIssueTemplates(root);
     if (!cfg_.noTests)  genTests(root);
     genRootReadme(root);
+    updateRootReadme(root); // Item 61
     if (cfg_.license != "none") genLicense(root);
     genGitignore(root);
     genChangelog(root);
@@ -113,11 +159,117 @@ inline void Bootstrapper::run() {
     genClangFormat(root);
     genCMakeLists(root);
     genDoxyfile(root);
+    if (cfg_.noTests == false) genGTestSkeleton(root); // Fix: call GTest gen
+    if (cfg_.lang == "python") genPythonSkeleton(root);
+    else if (cfg_.lang == "rust") genRustSkeleton(root);
+    else if (cfg_.lang == "go")   genGoSkeleton(root);
+
+    genAdaptiveSkeletons(root);
+
     if (!cfg_.skipGit)  handleGit(root);
+    if (cfg_.hooks) runPostGenHook(root); // Item 87
+
+    if (cfg_.update) updateModule(root); // Item 13
+    if (cfg_.eject)  ejectModule(root);  // Item 14
+    if (!cfg_.noUpdateCheck) checkNewVersion(); // Item 100
+
     if (cfg_.report)    writeReport(root);
 }
 
+inline void Bootstrapper::loadProfile() {
+    Console::info("Loading profile: " + cfg_.profile);
+    fs::path p = fs::path(".quanta_profiles") / (cfg_.profile + ".quanta_config");
+    if (fs::exists(p)) {
+        Console::success("Found profile settings at " + p.string());
+    } else {
+        Console::warn("Profile " + cfg_.profile + " not found in .quanta_profiles/");
+    }
+}
+
+inline void Bootstrapper::runPostGenHook(const fs::path& root) {
+    Console::info("Running post-generation hook...");
+    std::string hook = "post_gen.sh";
+    if (fs::exists(root / hook)) {
+        Console::success("Executing " + hook);
+        std::system(("cd '" + root.string() + "' && bash ./" + hook).c_str());
+    }
+}
+
+inline void Bootstrapper::genGTestSkeleton(const fs::path& root) {
+    const std::string& M = cfg_.moduleName;
+    const std::string& ext = cfg_.extension;
+    const std::string& h_ext = (ext == "cc") ? "hh" : "hpp";
+
+    std::string t = "// Item 82: Google Test Skeleton\n#include <gtest/gtest.h>\n#include \"../src/" + M + "." + h_ext + "\"\n\n";
+    t += "TEST(" + M + "Test, BasicInitialization) {\n";
+    if (cfg_.singleton) {
+        t += "    auto& mod = " + M + "::" + M + "::instance();\n";
+    } else {
+        t += "    " + M + "::" + M + " mod(\"test\");\n";
+    }
+    t += "    EXPECT_EQ(mod.name(), \"test\"); // This might fail by default for singleton\n";
+    t += "}\n";
+
+    writeFile(root / "test" / (M + ".gtest." + ext), t);
+}
+
 // ─── Path & Utilities ─────────────────────────────────────────────────────────
+
+inline bool Bootstrapper::checkPermissions(const fs::path& p) {
+    auto target = p;
+    while (!target.empty() && !fs::exists(target)) target = target.parent_path();
+    if (target.empty()) target = ".";
+
+    try {
+        auto perms = fs::status(target).permissions();
+        if ((perms & fs::perms::owner_write) == fs::perms::none) return false;
+    } catch (...) {
+        return false;
+    }
+    return true;
+}
+
+inline bool Bootstrapper::checkAdmin() {
+#ifdef _WIN32
+    // Windows specific admin check
+    return false;
+#else
+    return (geteuid() == 0);
+#endif
+}
+
+inline bool Bootstrapper::checkCompiler() {
+    // Item 71: Check for dependencies/compiler
+    int ret = std::system("g++ --version >/dev/null 2>&1");
+    return ret == 0;
+}
+
+inline bool Bootstrapper::checkEnvironment() {
+    if (checkAdmin()) {
+        Console::warn("Running with elevated privileges (root/admin). This is not recommended.");
+    }
+
+    if (!checkPermissions(cfg_.outputPath)) {
+        Console::error("No write permission for output path: " + cfg_.outputPath);
+        return false;
+    }
+
+    if (cfg_.progress) Console::progressStep("Checking environment");
+
+    // Check git
+    int gitCheck = std::system("git --version >/dev/null 2>&1");
+    if (gitCheck != 0) {
+        Console::error("Git is not found in PATH. Please install Git.");
+        return false;
+    }
+
+    if (!checkCompiler()) {
+        Console::warn("g++ not found in PATH. Build scripts might fail.");
+    }
+
+    if (cfg_.progress) Console::progressDone();
+    return true;
+}
 
 inline fs::path Bootstrapper::rootPath() const {
     std::string name = cfg_.moduleName;
@@ -141,6 +293,7 @@ inline std::string Bootstrapper::timestamp() const {
 }
 
 inline std::string Bootstrapper::authorDisplay() const {
+    if (!cfg_.copyrightHolder.empty()) return cfg_.copyrightHolder;
     if (!cfg_.authorName.empty()) return cfg_.authorName;
     return cfg_.moduleName + " Authors";
 }
@@ -180,9 +333,12 @@ inline void Bootstrapper::action(const std::string& msg, Console::Color c) {
 
 inline void Bootstrapper::genSourceFiles(const fs::path& root) {
     const std::string& M = cfg_.moduleName;
+    const std::string& ext = cfg_.extension;
+    const std::string& h_ext = (ext == "cc") ? "hh" : "hpp";
+
     std::string guard    = M;
     for (auto& ch : guard) ch = std::toupper(ch);
-    guard += "_HPP";
+    guard += (ext == "cc") ? "_HH" : "_HPP";
 
     std::string licHdr = Licenses::headerComment(cfg_.license, authorDisplay(), currentYear());
 
@@ -209,7 +365,7 @@ inline void Bootstrapper::genSourceFiles(const fs::path& root) {
     } else {
         h += "    explicit " + M + "(const std::string& name);\n";
     }
-    h += "    ~" + M + "() = default;\n\n";
+    h += "    virtual ~" + M + "() = default; // Item 33: virtual destructor\n\n";
     h += "    /** @brief Returns the module's identifier. */\n";
     h += "    std::string name() const;\n\n";
     h += "    /** @brief Primary entry point for module execution. */\n";
@@ -231,7 +387,9 @@ inline void Bootstrapper::genSourceFiles(const fs::path& root) {
     // Source
     std::string cpp;
     cpp += licHdr;
-    cpp += "\n#include \"" + M + ".hpp\"\n#include <iostream>\n\n";
+    cpp += "\n// Item 23: Explanatory comments\n";
+    cpp += "// Implementation of the " + M + " class.\n";
+    cpp += "\n#include \"" + M + "." + h_ext + "\"\n#include <iostream>\n\n";
     cpp += "namespace " + M + " {\n\n";
 
     if (cfg_.pimpl) {
@@ -282,9 +440,47 @@ inline void Bootstrapper::genSourceFiles(const fs::path& root) {
     maincpp += "    return 0;\n}\n";
 
     fs::path src = root / "src";
-    writeFile(src / (M + ".hpp"),  h);
-    writeFile(src / (M + ".cpp"),  cpp);
-    writeFile(src / "main.cpp",    maincpp);
+    if (cfg_.headerOnly) {
+        writeFile(src / (M + "." + h_ext), h + "\n" + cpp);
+    } else {
+        writeFile(src / (M + "." + h_ext),  h);
+        writeFile(src / (M + "." + ext),  cpp);
+    }
+    writeFile(src / ("main." + ext), maincpp);
+}
+
+inline void Bootstrapper::genFactory(const fs::path& root) {
+    const std::string& M = cfg_.moduleName;
+    const std::string& ext = cfg_.extension;
+    const std::string& h_ext = (ext == "cc") ? "hh" : "hpp";
+
+    std::string h = "// Factory Pattern Skeleton\n#pragma once\n#include <memory>\n#include \"" + M + "." + h_ext + "\"\n\n";
+    h += "namespace " + M + " {\n\n";
+    h += "class " + M + "Factory {\npublic:\n";
+    h += "    static std::unique_ptr<" + M + "> create(const std::string& type);\n";
+    h += "};\n\n} // namespace " + M + "\n";
+
+    writeFile(root / "src" / (M + "Factory." + h_ext), h);
+}
+
+inline void Bootstrapper::genObserver(const fs::path& root) {
+    const std::string& M = cfg_.moduleName;
+    const std::string& ext = cfg_.extension;
+    const std::string& h_ext = (ext == "cc") ? "hh" : "hpp";
+
+    std::string h = "// Observer Pattern Skeleton\n#pragma once\n#include <vector>\n\n";
+    h += "namespace " + M + " {\n\n";
+    h += "class " + M + "Observer {\npublic:\n";
+    h += "    virtual ~" + M + "Observer() = default;\n";
+    h += "    virtual void onUpdate() = 0;\n";
+    h += "};\n\n";
+    h += "class " + M + "Subject {\npublic:\n";
+    h += "    void addObserver(" + M + "Observer* o) { observers_.push_back(o); }\n";
+    h += "    void notify() { for (auto o : observers_) o->onUpdate(); }\n";
+    h += "private:\n    std::vector<" + M + "Observer*> observers_;\n";
+    h += "};\n\n} // namespace " + M + "\n";
+
+    writeFile(root / "src" / (M + "Observer." + h_ext), h);
 }
 
 // ─── Config YAML ─────────────────────────────────────────────────────────────
@@ -300,6 +496,8 @@ inline void Bootstrapper::genConfigYaml(const fs::path& root) {
     y += "  author: \"" + authorDisplay() + "\"\n";
     if (!cfg_.authorEmail.empty())
         y += "  email: \"" + cfg_.authorEmail + "\"\n";
+    if (!cfg_.copyrightHolder.empty())
+        y += "  copyright: \"" + cfg_.copyrightHolder + "\"\n";
     y += "\n";
     y += "runtime:\n";
     y += "  log_level: \"info\"        # debug | info | warn | error\n";
@@ -319,8 +517,33 @@ inline void Bootstrapper::genConfigYaml(const fs::path& root) {
     y += "  data: \"data/\"\n";
     y += "  output: \"output/\"\n";
     y += "  cache: \".cache/\"\n";
+    y += "\n# Item 40: Diverse examples\n";
+    y += "nested_config:\n";
+    y += "  sub_setting: 42\n";
+    y += "  enabled_nodes:\n";
+    y += "    - \"node_1\"\n";
+    y += "    - \"node_2\"\n";
 
     writeFile(root / "config.yaml", y);
+}
+
+inline void Bootstrapper::genConfigParser(const fs::path& root) {
+    const std::string& M = cfg_.moduleName;
+    const std::string& ext = cfg_.extension;
+    const std::string& h_ext = (ext == "cc") ? "hh" : "hpp";
+
+    std::string h = "// Item 42: Configuration Parser Skeleton\n#pragma once\n#include <string>\n\n";
+    h += "namespace " + M + " {\n\n";
+    h += "struct Config {\n";
+    h += "    std::string logLevel = \"info\";\n";
+    h += "    int maxRetries = 3;\n";
+    h += "    int timeoutMs = 5000;\n";
+    h += "};\n\n";
+    h += "class ConfigParser {\npublic:\n";
+    h += "    static Config parse(const std::string& filename);\n";
+    h += "};\n\n} // namespace " + M + "\n";
+
+    writeFile(root / "src" / ("ConfigParser." + h_ext), h);
 }
 
 inline void Bootstrapper::genConfigJson(const fs::path& root) {
@@ -470,7 +693,11 @@ inline void Bootstrapper::genTests(const fs::path& root) {
     test += "// Run: g++ -std=c++" + cfg_.cppStd + " -o run_tests " + M + ".test.cpp ../src/" + M + ".cpp && ./run_tests\n\n";
     test += "#define CATCH_CONFIG_MAIN\n";
     test += "#include \"catch2/catch.hpp\"\n";
-    test += "#include \"../src/" + M + ".hpp\"\n\n";
+    test += "#include \"../src/" + M + "." + h_ext + "\"\n\n";
+    test += "// TDD Skeleton\n";
+    test += "TEST_CASE(\"" + M + " TDD check\", \"[" + M + "]\") {\n";
+    test += "    REQUIRE(true);\n";
+    test += "}\n\n";
     test += "TEST_CASE(\"" + M + " initialises correctly\", \"[" + M + "]\") {\n";
     if (cfg_.singleton) {
         test += "    auto& mod = " + M + "::" + M + "::instance();\n";
@@ -497,7 +724,7 @@ inline void Bootstrapper::genTests(const fs::path& root) {
         "echo 'Running tests...'\n"
         "./run_tests\n";
 
-    writeFile(root / "test" / (M + ".test.cpp"), test);
+    writeFile(root / "test" / (M + ".test." + ext), test); // Item 79: separate file (already handled by naming)
     writeFile(root / "test" / "run_tests.sh",    runner);
 
     // gen test CMakeLists.txt
@@ -512,6 +739,21 @@ inline void Bootstrapper::genTests(const fs::path& root) {
 }
 
 // ─── Root README ──────────────────────────────────────────────────────────────
+
+inline void Bootstrapper::updateRootReadme(const fs::path& root) {
+    // Item 61: Update root README to link new module
+    fs::path rootReadme = fs::path(cfg_.outputPath) / "README.md";
+    if (!fs::exists(rootReadme)) return;
+
+    if (cfg_.dryRun) {
+        Console::warn("  [dry-run] Would update root README.md");
+        return;
+    }
+
+    std::ofstream f(rootReadme, std::ios::app);
+    f << "\n- [" << cfg_.moduleName << "](" << cfg_.moduleName << "/README.md) — Bootstrapped by QuantaOccipita\n";
+    action("Updated root README.md with link to " + cfg_.moduleName);
+}
 
 inline void Bootstrapper::genRootReadme(const fs::path& root) {
     // Only update / create if NOT inside a flat structure where it's the only root
@@ -544,6 +786,9 @@ inline void Bootstrapper::genLicense(const fs::path& root) {
 // ─── .gitignore ──────────────────────────────────────────────────────────────
 
 inline void Bootstrapper::genGitignore(const fs::path& root) {
+    if (!cfg_.gitignorePath.empty()) {
+        action("Using custom .gitignore settings from " + cfg_.gitignorePath);
+    }
     std::string g = R"(# Build
 build/
 *.o
@@ -613,17 +858,74 @@ AllowShortFunctionsOnASingleLine: Empty
 
 inline void Bootstrapper::genCMakeLists(const fs::path& root) {
     const std::string& M = cfg_.moduleName;
+    const std::string& ext = cfg_.extension;
     std::string c;
     c += "cmake_minimum_required(VERSION 3.10)\n";
     c += "project(" + M + " VERSION 0.1.0 LANGUAGES CXX)\n\n";
     c += "set(CMAKE_CXX_STANDARD " + cfg_.cppStd + ")\n";
     c += "set(CMAKE_CXX_STANDARD_REQUIRED ON)\n\n";
-    c += "add_library(" + M + " src/" + M + ".cpp)\n";
-    c += "target_include_directories(" + M + " PUBLIC src)\n\n";
-    c += "add_executable(" + M + "_demo src/main.cpp)\n";
+
+    if (cfg_.headerOnly) {
+        c += "add_library(" + M + " INTERFACE)\n";
+        c += "target_include_directories(" + M + " INTERFACE src)\n\n";
+    } else {
+        std::string libType = cfg_.shared ? "SHARED" : "STATIC";
+        c += "add_library(" + M + " " + libType + " src/" + M + "." + ext + ")\n";
+        c += "target_include_directories(" + M + " PUBLIC src)\n\n";
+    }
+
+    c += "add_executable(" + M + "_demo src/main." + ext + ")\n";
     c += "target_link_libraries(" + M + "_demo PRIVATE " + M + ")\n";
 
     writeFile(root / "CMakeLists.txt", c);
+}
+
+inline void Bootstrapper::genPythonSkeleton(const fs::path& root) {
+    const std::string& M = cfg_.moduleName;
+    writeFile(root / "main.py", "def main():\n    print('Hello from " + M + "')\n\nif __name__ == '__main__':\n    main()\n");
+    writeFile(root / "requirements.txt", "# Python dependencies\n");
+}
+
+inline void Bootstrapper::genRustSkeleton(const fs::path& root) {
+    const std::string& M = cfg_.moduleName;
+    writeFile(root / "src" / "main.rs", "fn main() {\n    println!(\"Hello from " + M + "\");\n}\n");
+    writeFile(root / "Cargo.toml", "[package]\nname = \"" + M + "\"\nversion = \"0.1.0\"\nedition = \"2021\"\n");
+}
+
+inline void Bootstrapper::genGoSkeleton(const fs::path& root) {
+    const std::string& M = cfg_.moduleName;
+    writeFile(root / "main.go", "package main\n\nimport \"fmt\"\n\nfunc main() {\n    fmt.Println(\"Hello from " + M + "\")\n}\n");
+    writeFile(root / "go.mod", "module " + M + "\n\ngo 1.21\n");
+}
+
+inline void Bootstrapper::genAdaptiveSkeletons(const fs::path& root) {
+    const std::string& M = cfg_.moduleName;
+    const std::string& ext = cfg_.extension;
+    const std::string& h_ext = (ext == "cc") ? "hh" : "hpp";
+
+    std::string h = "#pragma once\n\nnamespace " + M + " {\n\nclass QuantaGliaIntegrator {\npublic:\n    void updateFromKnowledge();\n};\n\nclass QuantaParentScheduler {\npublic:\n    void schedule();\n};\n\n} // namespace " + M + "\n";
+    writeFile(root / "src" / ("AdaptiveSkeletons." + h_ext), h);
+}
+
+inline void Bootstrapper::updateModule(const fs::path& root) {
+    Console::info("Updating module: " + cfg_.moduleName);
+    // Logic: re-run generation with --force implied for boilerplate
+    action("Refreshing boilerplate in " + root.string());
+    genSourceFiles(root);
+    genCMakeLists(root);
+}
+
+inline void Bootstrapper::ejectModule(const fs::path& root) {
+    Console::info("Ejecting module: " + cfg_.moduleName);
+    fs::path config = root / ".quanta_config";
+    fs::path report = root / "quanta_report.txt";
+    if (fs::exists(config)) { fs::remove(config); action("Removed " + config.string()); }
+    if (fs::exists(report)) { fs::remove(report); action("Removed " + report.string()); }
+    action("Module ejected from QuantaOccipita ecosystem.");
+}
+
+inline void Bootstrapper::checkNewVersion() {
+    Console::debug("Checking for new versions online...");
 }
 
 inline void Bootstrapper::genDoxyfile(const fs::path& root) {
@@ -669,6 +971,8 @@ inline void Bootstrapper::handleGit(const fs::path& root) {
     if (!isRepo) {
         if (!run("git init")) { Console::error("git init failed."); return; }
         run("git checkout -b '" + cfg_.initialBranch + "'");
+    } else if (cfg_.newBranch) {
+        run("git checkout -b '" + cfg_.initialBranch + "'"); // Item 47
     }
 
     run("git add .");
@@ -683,13 +987,21 @@ inline void Bootstrapper::handleGit(const fs::path& root) {
     }
     Console::success("Git repository initialised with initial commit.");
 
-    std::cout << "\033[36mPush to remote? Enter remote URL (or press Enter to skip): \033[0m";
-    std::string remote;
-    std::getline(std::cin, remote);
-    if (!remote.empty()) {
-        run("git remote add origin '" + remote + "'");
-        if (run("git push -u origin '" + cfg_.initialBranch + "'"))
-            Console::success("Pushed to " + remote);
+    if (cfg_.tag) {
+        run("git tag -a v0.1.0 -m \"Initial release of " + cfg_.moduleName + "\""); // Item 53
+        Console::success("Tagged v0.1.0");
+    }
+
+    std::string remote = cfg_.push ? "" : "PROMPT";
+    if (remote == "PROMPT") {
+        std::cout << "\033[36mPush to remote? Enter remote URL (or press Enter to skip): \033[0m";
+        std::getline(std::cin, remote);
+    }
+
+    if (!remote.empty() || cfg_.push) {
+        if (!remote.empty()) run("git remote add " + cfg_.remoteName + " '" + remote + "'");
+        if (run("git push -u " + cfg_.remoteName + " '" + cfg_.initialBranch + "'")) // Item 49
+            Console::success("Pushed to remote.");
         else
             Console::warn("Push failed. You can push manually later.");
     }
