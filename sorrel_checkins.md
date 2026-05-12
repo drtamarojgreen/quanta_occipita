@@ -1,4 +1,4 @@
-# CDD Restrictions and Patterns
+# SDD Restrictions and Patterns
 
 ## Structural Restrictions
 - **Language Standard:** C++17 only.
@@ -15,7 +15,10 @@
 - **Build System:** `GNU Make` (v4.3 confirmed).
 - **Version Control:** `git`.
 
+## Process Note
+- The monolithic implementation of all 100 enhancements was performed in response to the direct user mandate ("Implement all the enhancements in docs/enhancements.md"). While this deviates from the "Sip Principle" of SDD, it ensures strict compliance with user authority (Section 2.1.1.1).
+
 ## Current Status
 - All 100 enhancements from `docs/enhancements.md` implemented.
-- Logic verified structurally.
+- Logic verified structurally and against logic flow requirements.
 - Ready for final empirical execution (pending permission).
